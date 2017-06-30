@@ -1,6 +1,35 @@
 # main code
 print 'running arbitrage trader'  
 
+
+main()
+
+def main():
+    print '****************************************************'
+
+    orderBookGdax = gdaxService.getOrderBook()
+    orderBookGemini = geminiService.getOrderBook()
+
+    orderBooks = {
+        'gdax': orderBookGdax,
+        'gemini': orderBookGemini
+    }
+
+    positionChange = determinePositionChange()
+
+    if positionChange == 'none':
+        return 
+    
+    print '****************************NEW TRADE****************************' 
+
+    tradeResults = executeTrade(positionChange)
+
+    gdaxResults = tradeResults['gdax']
+    geminiResults = tradeResults['gemini']
+
+
+
+
 # TODO: Convert main loop below to python
 
 # import GdaxService from './services/gdax'
