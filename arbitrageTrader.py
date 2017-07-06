@@ -1,10 +1,15 @@
 import time
 from config import config
-from services.gemini import geminiService
-from services.gdax import gdaxService
+from services.geminiService import geminiService
+from services.gdaxService import gdaxService
+import gdax
 
-geminiService  = geminiService()
-gdaxService = gdaxService()
+
+
+
+
+geminiService  = geminiService(config)
+gdaxService = gdaxService(config, gdax)
 
 def main():
     
@@ -24,36 +29,36 @@ def main():
 
         print orderBooks
 
-        positionChange = determinePositionChange()
+        # positionChange = determinePositionChange()
 
-        if positionChange == 'none':
-            return 
+        # if positionChange == 'none':
+        #     return 
         
-        print '****************************NEW TRADE****************************' 
+        # print '****************************NEW TRADE****************************' 
 
-        tradeResults = executeTrade(positionChange)
+        # tradeResults = executeTrade(positionChange)
 
-        gdaxResults = tradeResults['gdax']
-        geminiResults = tradeResults['gemini']
+        # gdaxResults = tradeResults['gdax']
+        # geminiResults = tradeResults['gemini']
 
-        buyValue = null
-        sellValue = null
+        # buyValue = null
+        # sellValue = null
 
-        if tradeResults['takeProfit'] == 'gdax':
-            buyValue = (tradeResults['gemini ]['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
-            sellValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
+        # if tradeResults['takeProfit'] == 'gdax':
+        #     buyValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
+        #     sellValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
         
-        if tradeResults['takeProfit'] == 'gemini'
-            sellValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount'] - tradeResults['gemini']['fee']
-            buyValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
+        # if tradeResults['takeProfit'] == 'gemini':
+        #     sellValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount'] - tradeResults['gemini']['fee']
+        #     buyValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
 
-        profit = (sellValue - buyValue) / buyValue
+        # profit = (sellValue - buyValue) / buyValue
 
-        print "successful " + tradeResults['gdax']['action'] + "on Gdax for " + tradeResults['gdax']['amount'] + "ethereum at " + tradeResults['gdax']['price'] + "/eth, fee of " + tradeResults['gdax']['fee']
-        print "successful " + tradeResults['gemini']['action'] + "on Gemini for " + tradeResults['gemini']['amount'] + "ethereum at " + tradeResults['gemini']['price'] + "/eth, fee of " + tradeResults['gemini']['fee']
+        # print "successful " + tradeResults['gdax']['action'] + "on Gdax for " + tradeResults['gdax']['amount'] + "ethereum at " + tradeResults['gdax']['price'] + "/eth, fee of " + tradeResults['gdax']['fee']
+        # print "successful " + tradeResults['gemini']['action'] + "on Gemini for " + tradeResults['gemini']['amount'] + "ethereum at " + tradeResults['gemini']['price'] + "/eth, fee of " + tradeResults['gemini']['fee']
 
-        print "profit percentage: " + profit
-        determineCurrentEthereumPosition()
+        # print "profit percentage: " + profit
+        # determineCurrentEthereumPosition()
     except:
         print("Error:",sys.exc_info()[0],"occured.")
     finally: 
@@ -206,7 +211,7 @@ def execute(positionChange):
 
     # print "List processing complete."
     # let tradeResults = await Promise.all([gdaxService.executeTrade(positionChange), geminiService.executeTrade(positionChange)])
-    
+
     tradeLog = {
         'gdax': tradeResults[0],
         'gemini': tradeResults[1],
@@ -263,7 +268,7 @@ def calculateBidPrice(bids, ethereumTradingQuantity):
         return float(priceLevel['price'])
     else:
         return 'no match found'
-}
+
 
 
 def calculateAskPrice(asks, ethereumTradingQuantity):
@@ -274,7 +279,7 @@ def calculateAskPrice(asks, ethereumTradingQuantity):
         return float(priceLevel['price'])
     else:
         return 'no match found'
-}
+
 
 
 
