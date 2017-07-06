@@ -40,17 +40,17 @@ def main():
         sellValue = null
 
         if tradeResults['takeProfit'] == 'gdax':
-            buyValue = (tradeResults[gemini][price]*tradeResults[gemini][amount]) - tradeResults[gemini][fee]
-            sellValue = (tradeResults[gdax][price]*tradeResults[gdax][amount]) - tradeResults[gdax][fee]
+            buyValue = (tradeResults['gemini ]['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
+            sellValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
         
         if tradeResults['takeProfit'] == 'gemini'
-            sellValue = (tradeResults[gemini][price]*tradeResults[gemini][amount] - tradeResults[gemini][fee]
-            buyValue = (tradeResults[gdax][price]*tradeResults[gdax][amount]) - tradeResults[gdax][fee]
+            sellValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount'] - tradeResults['gemini']['fee']
+            buyValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
 
         profit = (sellValue - buyValue) / buyValue
 
-        print "successful " + tradeResults[gdax][action] + "on Gdax for " + tradeResults[gdax][amount] + "ethereum at " + tradeResults[gdax][price] + "/eth, fee of " + tradeResults[gdax][fee]
-        print "successful " + tradeResults[gemini][action] + "on Gemini for " + tradeResults[gemini][amount] + "ethereum at " + tradeResults[gemini][price] + "/eth, fee of " + tradeResults[gemini][fee]
+        print "successful " + tradeResults['gdax']['action'] + "on Gdax for " + tradeResults['gdax']['amount'] + "ethereum at " + tradeResults['gdax']['price'] + "/eth, fee of " + tradeResults['gdax']['fee']
+        print "successful " + tradeResults['gemini']['action'] + "on Gemini for " + tradeResults['gemini']['amount'] + "ethereum at " + tradeResults['gemini']['price'] + "/eth, fee of " + tradeResults['gemini']['fee']
 
         print "profit percentage: " + profit
         determineCurrentEthereumPosition()
@@ -121,7 +121,6 @@ def determinePositionChange(orderBooks):
         print "estimated transaction fees: " + estimatedTransactionFees
         print "estimated net profit: " + estimatedNetProfit
       
-
         positionChange = {
             'takeProfit': 'gdax',
             'gdax' : {
@@ -207,7 +206,7 @@ def execute(positionChange):
 
     # print "List processing complete."
     # let tradeResults = await Promise.all([gdaxService.executeTrade(positionChange), geminiService.executeTrade(positionChange)])
-  
+    
     tradeLog = {
         'gdax': tradeResults[0],
         'gemini': tradeResults[1],
