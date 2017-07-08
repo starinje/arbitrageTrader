@@ -1,3 +1,5 @@
+import simplejson as json
+
 class gdaxService:
 
     def __init__(self, options, gdaxLibrary):
@@ -13,11 +15,31 @@ class gdaxService:
     def getOrderBook(self):
 
         orderBook = self.publicClient.get_product_order_book('ETH-USD', level=2)
-        print orderBook
+        
+        bids = []
+        asks = []
 
-        # reformat order book here....
-     
-        return 'gdax order book'
+        for bidLevel in orderBook['bids']: 
+            bid = {
+                'price': bidLevel[0],
+                'amount': bidLevel[1],
+            }
+            bids.append(bid)
+
+        for askLevel in orderBook['asks']: 
+            ask = {
+                'price': askLevel[0],
+                'amount': askLevel[1],
+            }
+            asks.append(ask)
+
+        reformattedOrderBook = {
+            'asks': asks,
+            'bids': bids,
+            'timeStamp': 'timestamp'
+        }
+
+        return reformattedOrderBook
 
 
 #     getOrderBook = async () => {

@@ -3,13 +3,159 @@ from config import config
 from services.geminiService import geminiService
 from services.gdaxService import gdaxService
 import gdax
+import sys
 
-
-
+print config
 
 
 geminiService  = geminiService(config)
 gdaxService = gdaxService(config, gdax)
+
+def calculateBidPrice(bids, ethereumTradingQuantity):
+
+    priceLevel = filter(lambda bid: float(bid['amount']) >= ethereumTradingQuantity, bids)
+
+    if len(priceLevel) > 0:
+        return float(priceLevel[0]['price'])
+    else:
+        return 'no match found'
+
+
+def calculateAskPrice(asks, ethereumTradingQuantity):
+
+    priceLevel = filter(lambda ask: float(ask['amount']) >= ethereumTradingQuantity, asks)
+
+    if len(priceLevel) > 0:
+        return float(priceLevel[0]['price'])
+    else:
+        return 'no match found'
+
+def determinePositionChange(orderBooks):
+    try: 
+        print 'in determinePositionChange function...'
+        ethereumTradingQuantity = config['ethereumTradingQuantity']
+        takeProfitTradeThreshold = config['takeProfitTradeThreshold']
+        swapFundsTradeThreshold = config['swapFundsTradeThreshold']
+
+        # bidPriceGemini = calculateBidPrice(orderBooks['gemini']['bids'], ethereumTradingQuantity)
+        bidPriceGdax = calculateBidPrice(orderBooks['gdax']['bids'], ethereumTradingQuantity)
+        # askPriceGemini = calculateAskPrice(orderBooks['gemini']['asks'], ethereumTradingQuantity)
+        askPriceGdax = calculateAskPrice(orderBooks['gdax']['asks'], ethereumTradingQuantity)
+
+        transactionPercentageGemini = config['transactionPercentageGemini']
+        transactionPercentageGdax = config['transactionPercentageGdax']
+
+        gdaxBasePercentageDifference = ((bidPriceGdax - askPriceGemini)/askPriceGemini)*100
+        geminiBasePercentageDifference = ((bidPriceGemini - askPriceGdax)/askPriceGdax)*100
+
+        gdaxRateIsHigherAndProfitable = gdaxBasePercentageDifference > takeProfitTradeThreshold
+        geminiRateIsSwappable = geminiBasePercentageDifference > swapFundsTradeThreshold
+
+        positionChange = null
+        estimatedTransactionFees = null
+        estimatedGrossProfit = null
+        estimatedNetProfit = null
+
+        print ''
+        print "Sell on Gemini for " + bidPriceGemini
+        print "Buy on Gdax for " + askPriceGdax
+        print "Percent Difference: " + geminiBasePercentageDifference
+
+        print ''
+        print "Sell on Gdax for " + bidPriceGdax
+        print "Buy on Gemini for " + askPriceGemini
+        print "Percent Difference: " + gdaxBasePercentageDifference
+
+        if gdaxRateIsHigherAndProfitable:
+
+            print "bidPriceGemini: " + bidPriceGemini
+            print "bidPriceGdax: " + bidPriceGdax
+            print "askPriceGemini: " + askPriceGemini
+            print "askPriceGdax: " + askPriceGdax
+        
+            print "gdaxBasePercentageDifference: " + gdaxBasePercentageDifference
+            print "geminiBasePercentageDifference: " + geminiBasePercentageDifference
+
+            print "gdax rate is higher and profitable"
+
+            totalSaleValue = bidPriceGdax*ethereumTradingQuantity
+            totalPurchaseCost = askPriceGemini*ethereumTradingQuantity
+            estimatedGrossProfit = totalSaleValue-totalPurchaseCost
+            estimatedTransactionFees = ((transactionPercentageGdax/100)*totalSaleValue) + ((transactionPercentageGemini/100)*totalPurchaseCost)
+            estimatedNetProfit = estimatedGrossProfit - estimatedTransactionFees
+            
+            print "estimated total sale value: " + totalSaleValue
+            print "estimated total purchase cost: " + totalPurchaseCost
+            print "estimated gross profit: " + estimatedGrossProfit
+            print "estimated transaction fees: " + estimatedTransactionFees
+            print "estimated net profit: " + estimatedNetProfit
+        
+            positionChange = {
+                'takeProfit': 'gdax',
+                'gdax' : {
+                    'action': 'sell',
+                    'quantity': ethereumTradingQuantity,
+                    'units': 'eth',
+                    'rate': bidPriceGdax
+                },
+                'gemini': {
+                    'action': 'buy',
+                    'quantity': ethereumTradingQuantity,
+                    'units': 'eth',
+                    'rate': askPriceGemini
+                }
+            }
+        elif geminiRateIsSwappable:
+            print "bidPriceGemini: " + bidPriceGemini
+            print "bidPriceGdax: " + bidPriceGdax
+            print "askPriceGemini: " + askPriceGemini
+            print "askPriceGdax: " + askPriceGdax
+
+            print "gdaxBasePercentageDifference: " + gdaxBasePercentageDifference
+            print "geminiBasePercentageDifference: " + geminiBasePercentageDifference
+            print "gemini rate is higher and profitable"
+
+            totalSaleValue = bidPriceGemini*ethereumTradingQuantity
+            totalPurchaseCost = askPriceGdax*ethereumTradingQuantity
+            estimatedGrossProfit = totalSaleValue-totalPurchaseCost
+            estimatedTransactionFees = ((transactionPercentageGemini/100)*totalSaleValue) + ((transactionPercentageGdax/100)*totalPurchaseCost)
+            estimatedNetProfit = estimatedGrossProfit - estimatedTransactionFees
+            
+            print "estimated total sale value: " + totalSaleValue
+            print "estimated total purchase cost: " + totalPurchaseCost
+            print "estimated gross profit: " + estimatedGrossProfit
+            print "estimated transaction fees: " + estimatedTransactionFees
+            print "estimated net profit: " + estimatedNetProfit
+
+            positionChange= {
+                'takeProfit' : 'gemini',
+                'gemini' : {
+                    'action' : 'sell',
+                    'quantity' : ethereumTradingQuantity,
+                    'units' : 'eth',
+                    'rate' : bidPriceGemini
+                },
+                'gdax' : {
+                    'action' : 'buy',
+                    'quantity' : ethereumTradingQuantity,
+                    'units' : 'eth',
+                    'rate' : askPriceGdax
+                }
+            }
+        else:
+            positionChange = 'none'
+            return positionChange
+        
+        exchangeWithEthereumBalance = determineCurrentEthereumPosition()
+
+        if exchangeWithEthereumBalance == 'either':
+            return positionChange
+        elif positionChange[exchangeWithEthereumBalance][action] == 'sell':
+            return positionChange
+        else:
+            return 'none'
+    except Exception as e: 
+        raise e
 
 def main():
     
@@ -27,9 +173,8 @@ def main():
             'gemini': orderBookGemini
         }
 
-        print orderBooks
-
-        # positionChange = determinePositionChange()
+        positionChange = determinePositionChange(orderBooks)
+        
 
         # if positionChange == 'none':
         #     return 
@@ -59,137 +204,17 @@ def main():
 
         # print "profit percentage: " + profit
         # determineCurrentEthereumPosition()
-    except:
-        print("Error:",sys.exc_info()[0],"occured.")
+    except Exception as e: 
+        print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
+
     finally: 
+        print config['timeDelta']
         time.sleep(config['timeDelta'])
         main()
 
 main()
 
 
-def determinePositionChange(orderBooks):
-    ethereumTradingQuantity = config['ethereumTradingQuantity']
-    takeProfitTradeThreshold = config['takeProfitTradeThreshold']
-    swapFundsTradeThreshold = config['swapFundsTradeThreshold']
-
-    bidPriceGemini = calculateBidPrice(orderBooks['gemini']['bids'], ethereumTradingQuantity)
-    bidPriceGdax = calculateBidPrice(orderBooks['gdax']['bids'], ethereumTradingQuantity)
-    askPriceGemini = calculateAskPrice(orderBooks['gemini']['asks'], ethereumTradingQuantity)
-    askPriceGdax = calculateAskPrice(orderBooks['gdax']['asks'], ethereumTradingQuantity)
-
-    transactionPercentageGemini = config['transactionPercentageGemini']
-    transactionPercentageGdax = config['transactionPercentageGdax']
-
-    gdaxBasePercentageDifference = ((bidPriceGdax - askPriceGemini)/askPriceGemini)*100
-    geminiBasePercentageDifference = ((bidPriceGemini - askPriceGdax)/askPriceGdax)*100
-
-    gdaxRateIsHigherAndProfitable = gdaxBasePercentageDifference > takeProfitTradeThreshold
-    geminiRateIsSwappable = geminiBasePercentageDifference > swapFundsTradeThreshold
-
-    positionChange = null
-    estimatedTransactionFees = null
-    estimatedGrossProfit = null
-    estimatedNetProfit = null
-
-    print ''
-    print "Sell on Gemini for " + bidPriceGemini
-    print "Buy on Gdax for " + askPriceGdax
-    print "Percent Difference: " + geminiBasePercentageDifference
-
-    print ''
-    print "Sell on Gdax for " + bidPriceGdax
-    print "Buy on Gemini for " + askPriceGemini
-    print "Percent Difference: " + gdaxBasePercentageDifference
-
-    if gdaxRateIsHigherAndProfitable:
-
-        print "bidPriceGemini: " + bidPriceGemini
-        print "bidPriceGdax: " + bidPriceGdax
-        print "askPriceGemini: " + askPriceGemini
-        print "askPriceGdax: " + askPriceGdax
-    
-        print "gdaxBasePercentageDifference: " + gdaxBasePercentageDifference
-        print "geminiBasePercentageDifference: " + geminiBasePercentageDifference
-
-        print "gdax rate is higher and profitable"
-
-        totalSaleValue = bidPriceGdax*ethereumTradingQuantity
-        totalPurchaseCost = askPriceGemini*ethereumTradingQuantity
-        estimatedGrossProfit = totalSaleValue-totalPurchaseCost
-        estimatedTransactionFees = ((transactionPercentageGdax/100)*totalSaleValue) + ((transactionPercentageGemini/100)*totalPurchaseCost)
-        estimatedNetProfit = estimatedGrossProfit - estimatedTransactionFees
-        
-        print "estimated total sale value: " + totalSaleValue
-        print "estimated total purchase cost: " + totalPurchaseCost
-        print "estimated gross profit: " + estimatedGrossProfit
-        print "estimated transaction fees: " + estimatedTransactionFees
-        print "estimated net profit: " + estimatedNetProfit
-      
-        positionChange = {
-            'takeProfit': 'gdax',
-            'gdax' : {
-                'action': 'sell',
-                'quantity': ethereumTradingQuantity,
-                'units': 'eth',
-                'rate': bidPriceGdax
-            },
-            'gemini': {
-                'action': 'buy',
-                'quantity': ethereumTradingQuantity,
-                'units': 'eth',
-                'rate': askPriceGemini
-            }
-        }
-    elif geminiRateIsSwappable:
-        print "bidPriceGemini: " + bidPriceGemini
-        print "bidPriceGdax: " + bidPriceGdax
-        print "askPriceGemini: " + askPriceGemini
-        print "askPriceGdax: " + askPriceGdax
-
-        print "gdaxBasePercentageDifference: " + gdaxBasePercentageDifference
-        print "geminiBasePercentageDifference: " + geminiBasePercentageDifference
-        print "gemini rate is higher and profitable"
-
-        totalSaleValue = bidPriceGemini*ethereumTradingQuantity
-        totalPurchaseCost = askPriceGdax*ethereumTradingQuantity
-        estimatedGrossProfit = totalSaleValue-totalPurchaseCost
-        estimatedTransactionFees = ((transactionPercentageGemini/100)*totalSaleValue) + ((transactionPercentageGdax/100)*totalPurchaseCost)
-        estimatedNetProfit = estimatedGrossProfit - estimatedTransactionFees
-        
-        print "estimated total sale value: " + totalSaleValue
-        print "estimated total purchase cost: " + totalPurchaseCost
-        print "estimated gross profit: " + estimatedGrossProfit
-        print "estimated transaction fees: " + estimatedTransactionFees
-        print "estimated net profit: " + estimatedNetProfit
-
-        positionChange= {
-            'takeProfit' : 'gemini',
-            'gemini' : {
-                'action' : 'sell',
-                'quantity' : ethereumTradingQuantity,
-                'units' : 'eth',
-                'rate' : bidPriceGemini
-            },
-            'gdax' : {
-                'action' : 'buy',
-                'quantity' : ethereumTradingQuantity,
-                'units' : 'eth',
-                'rate' : askPriceGdax
-            }
-        }
-    else:
-        positionChange = 'none'
-        return positionChange
-    
-    exchangeWithEthereumBalance = determineCurrentEthereumPosition()
-
-    if exchangeWithEthereumBalance == 'either':
-        return positionChange
-    elif positionChange[exchangeWithEthereumBalance][action] == 'sell':
-        return positionChange
-    else:
-        return 'none'
 
 
 def execute(positionChange):
@@ -260,25 +285,7 @@ def determineCurrentEthereumPosition():
     return ethereumBalance
 
 
-def calculateBidPrice(bids, ethereumTradingQuantity):
 
-    priceLevel = filter(lambda bid: bid['amount'] >= ethereumTradingQuantity, bids)
-
-    if len(priceLevel) > 0:
-        return float(priceLevel['price'])
-    else:
-        return 'no match found'
-
-
-
-def calculateAskPrice(asks, ethereumTradingQuantity):
-
-    priceLevel = filter(lambda ask: ask['amount'] >= ethereumTradingQuantity, asks)
-
-    if len(priceLevel) > 0:
-        return float(priceLevel['price'])
-    else:
-        return 'no match found'
 
 
 
