@@ -2,8 +2,8 @@ config = {
     'gemini': {
         'url': 'https://api.gemini.com/v1',
         'key': 'A2Vi33Da5ESehulxBYJD',
-        # 'secret': '4Xgj1U5HrxgHB7bvVeTjftBzN2nK',
-        # 'sandbox': false,
+        'secret': '4Xgj1U5HrxgHB7bvVeTjftBzN2nK',
+        'sandbox': False,
         'orderFillTime': 1
     },
     'gdax': {

@@ -36,7 +36,6 @@ class gdaxService:
         reformattedOrderBook = {
             'asks': asks,
             'bids': bids,
-            'timeStamp': 'timestamp'
         }
 
         return reformattedOrderBook

@@ -8,27 +8,31 @@ import sys
 print config
 
 
-geminiService  = geminiService(config)
+geminiService  = geminiService(config['gemini'])
 gdaxService = gdaxService(config, gdax)
 
 def calculateBidPrice(bids, ethereumTradingQuantity):
+    try:
 
-    priceLevel = filter(lambda bid: float(bid['amount']) >= ethereumTradingQuantity, bids)
+        priceLevel = filter(lambda bid: float(bid['amount']) >= ethereumTradingQuantity, bids)
 
-    if len(priceLevel) > 0:
-        return float(priceLevel[0]['price'])
-    else:
-        return 'no match found'
-
+        if len(priceLevel) > 0:
+            return float(priceLevel[0]['price'])
+        else:
+            return 'no match found'
+    except Exception as e: 
+            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
 def calculateAskPrice(asks, ethereumTradingQuantity):
+    try: 
+        priceLevel = filter(lambda ask: float(ask['amount']) >= ethereumTradingQuantity, asks)
 
-    priceLevel = filter(lambda ask: float(ask['amount']) >= ethereumTradingQuantity, asks)
-
-    if len(priceLevel) > 0:
-        return float(priceLevel[0]['price'])
-    else:
-        return 'no match found'
+        if len(priceLevel) > 0:
+            return float(priceLevel[0]['price'])
+        else:
+            return 'no match found'
+    except Exception as e: 
+            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
 def determinePositionChange(orderBooks):
     try: 
@@ -37,9 +41,9 @@ def determinePositionChange(orderBooks):
         takeProfitTradeThreshold = config['takeProfitTradeThreshold']
         swapFundsTradeThreshold = config['swapFundsTradeThreshold']
 
-        # bidPriceGemini = calculateBidPrice(orderBooks['gemini']['bids'], ethereumTradingQuantity)
+        bidPriceGemini = calculateBidPrice(orderBooks['gemini']['bids'], ethereumTradingQuantity)
         bidPriceGdax = calculateBidPrice(orderBooks['gdax']['bids'], ethereumTradingQuantity)
-        # askPriceGemini = calculateAskPrice(orderBooks['gemini']['asks'], ethereumTradingQuantity)
+        askPriceGemini = calculateAskPrice(orderBooks['gemini']['asks'], ethereumTradingQuantity)
         askPriceGdax = calculateAskPrice(orderBooks['gdax']['asks'], ethereumTradingQuantity)
 
         transactionPercentageGemini = config['transactionPercentageGemini']
@@ -155,17 +159,21 @@ def determinePositionChange(orderBooks):
         else:
             return 'none'
     except Exception as e: 
-        raise e
+        print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
 def main():
     
     try: 
         print '****************************************************'
+
+        geminiBalances = geminiService.availableBalances()
+        print geminiBalances
         
         orderBookGdax = gdaxService.getOrderBook()
         orderBookGemini = geminiService.getOrderBook()
 
         print orderBookGdax
+        print '++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
         print orderBookGemini
 
         orderBooks = {
@@ -218,77 +226,72 @@ main()
 
 
 def execute(positionChange):
+    try:
+        tradeResults = []
+        jobs = []
 
-    tradeResults = []
-    jobs = []
+        thread1 = threading.Thread(target=gdaxService.executeTrade(positionChange, tradeResults))
+        thread2 = threading.Thread(target=geminiService.executeTrade(positionChange, tradeResults))
 
-    thread1 = threading.Thread(target=gdaxService.executeTrade(positionChange, tradeResults))
-    thread2 = threading.Thread(target=geminiService.executeTrade(positionChange, tradeResults))
+        jobs.append(thread1)
+        jobs.append(thread2)
 
-    jobs.append(thread1)
-    jobs.append(thread2)
+        for j in jobs:
+            j.start()
 
-    for j in jobs:
-        j.start()
+        for j in jobs:
+            j.join()
 
-    for j in jobs:
-        j.join()
+        # print "List processing complete."
+        # let tradeResults = await Promise.all([gdaxService.executeTrade(positionChange), geminiService.executeTrade(positionChange)])
 
-    # print "List processing complete."
-    # let tradeResults = await Promise.all([gdaxService.executeTrade(positionChange), geminiService.executeTrade(positionChange)])
+        tradeLog = {
+            'gdax': tradeResults[0],
+            'gemini': tradeResults[1],
+            'takeProfit': positionChange['takeProfit']
+        }
 
-    tradeLog = {
-        'gdax': tradeResults[0],
-        'gemini': tradeResults[1],
-        'takeProfit': positionChange['takeProfit']
-    }
-
-    return tradeLog
+        return tradeLog
+    except Exception as e: 
+            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
 def determineCurrentEthereumPosition():
-
-    currentGeminiBalances = geminiService.availableBalances()
-  
-    geminiUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGeminiBalances)
-    geminiUsdBalance = float(geminiUsdBalance[0]['amount'])
-
-    geminiEthBalance = filter(lambda accountDetails: accountDetails['currency'] == 'ETH', currentGeminiBalances)
-    geminiEthBalance = float(geminiEthBalance[0]['amount'])
-
-
-    currentGdaxBalances = gdaxService.availableBalances()
-  
-    gdaxUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGdaxBalances)
-    gdaxUsdBalance = float(gdaxUsdBalance[0]['balance'])
-
-    gdaxEthBalance = filter(lambda accountDetails: accountDetails['currency'] == 'ETH', currentGdaxBalances)
-    gdaxEthBalance = float(gdaxEthBalance[0]['balance'])
-
-    print "geminiEthBalance: " + geminiEthBalance
-    print "geminiUsdBalance: " + geminiUsdBalance
-    print "gdaxEthBalance: " + gdaxEthBalance
-    print "gdaxUsdBalance: " + gdaxUsdBalance
-
-
-    ethereumTradingQuantity = config['ethereumTradingQuantity']
-    ethereumBalance = null
-
-    if geminiEthBalance >= ethereumTradingQuantity and gdaxEthBalance >= ethereumTradingQuantity:
-        ethereumBalance = 'either'
-    elif geminiEthBalance >= gdaxEthBalance:
-        ethereumBalance = 'gemini'
-    elif gdaxEthBalance >= geminiEthBalance:
-        ethereumBalance = 'gdax'
+    try: 
+        currentGeminiBalances = geminiService.availableBalances()
     
-    print 'ethereum balance is in ' + ethereumBalance
+        geminiUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGeminiBalances)
+        geminiUsdBalance = float(geminiUsdBalance[0]['amount'])
 
-    return ethereumBalance
-
-
-
-
+        geminiEthBalance = filter(lambda accountDetails: accountDetails['currency'] == 'ETH', currentGeminiBalances)
+        geminiEthBalance = float(geminiEthBalance[0]['amount'])
 
 
+        currentGdaxBalances = gdaxService.availableBalances()
+    
+        gdaxUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGdaxBalances)
+        gdaxUsdBalance = float(gdaxUsdBalance[0]['balance'])
+
+        gdaxEthBalance = filter(lambda accountDetails: accountDetails['currency'] == 'ETH', currentGdaxBalances)
+        gdaxEthBalance = float(gdaxEthBalance[0]['balance'])
+
+        print "geminiEthBalance: " + geminiEthBalance
+        print "geminiUsdBalance: " + geminiUsdBalance
+        print "gdaxEthBalance: " + gdaxEthBalance
+        print "gdaxUsdBalance: " + gdaxUsdBalance
 
 
+        ethereumTradingQuantity = config['ethereumTradingQuantity']
+        ethereumBalance = null
 
+        if geminiEthBalance >= ethereumTradingQuantity and gdaxEthBalance >= ethereumTradingQuantity:
+            ethereumBalance = 'either'
+        elif geminiEthBalance >= gdaxEthBalance:
+            ethereumBalance = 'gemini'
+        elif gdaxEthBalance >= geminiEthBalance:
+            ethereumBalance = 'gdax'
+        
+        print 'ethereum balance is in ' + ethereumBalance
+
+        return ethereumBalance
+    except Exception as e: 
+            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
