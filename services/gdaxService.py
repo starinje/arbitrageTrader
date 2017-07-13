@@ -1,17 +1,23 @@
 import simplejson as json
+import base64
+import sys
 
 class gdaxService:
 
+    'https://api.gdax.com/products/ETH-USD/book?level=2',
+
     def __init__(self, options, gdaxLibrary):
         self.options = options
+        subdomain = 'api'
+        self.baseUrl = 'https://' + subdomain + "." + 'gdax.com'
         self.publicClient = gdaxLibrary.PublicClient()
-        # self.authedClient = 
-        # this.baseUrl = this.options.sandbox ? `https://api-public.sandbox.gdax.com` : `https://api.gdax.com`
-        # this.publicClient = new Gdax.PublicClient('ETH-USD', this.baseUrl);
-        # this.authedClient = new Gdax.AuthenticatedClient(
-        #     this.options.key, this.options.secret, this.options.passphrase, this.baseUrl);
-        # }
-       
+        self.authedClient = gdaxLibrary.AuthenticatedClient(
+            self.options['key'], 
+            self.options['secret'], 
+            self.options['passphrase'],
+            self.baseUrl
+        )
+          
     def getOrderBook(self):
 
         orderBook = self.publicClient.get_product_order_book('ETH-USD', level=2)
@@ -40,51 +46,12 @@ class gdaxService:
 
         return reformattedOrderBook
 
+    def availableBalances(self):
+        try: 
+            return self.authedClient.get_accounts()
+        except Exception as e: 
+            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
-#     getOrderBook = async () => {
-#         try{
-#             return new Promise((resolve, reject) => {
-#                 this.publicClient.getProductOrderBook({'level': 2}, (err, response, data) => {
-
-#                     if(err){
-
-#                         return resolve(err)
-#                     }
-
-#                     let orderBook = {...data}
-
-#                     // if(orderBook.bids.length < 1 || orderBook.asks.length < 1){
-#                     //     return reject(new Error('order book is corrupted'))
-#                     // }
-                
-#                     const bids = orderBook.bids.map((bidLevel) => {
-#                         return {
-#                             price: bidLevel[0],
-#                             amount: bidLevel[1]
-#                         }
-#                     })
-
-#                     const asks = orderBook.asks.map((askLevel) => {
-#                         return {
-#                             price: askLevel[0],
-#                             amount: askLevel[1]
-#                         }
-#                     })
-
-#                     let reformattedOrderBook = {
-#                         asks: asks,
-#                         bids: bids,
-#                         timeStamp: 'timestamp'
-#                     }
-
-#                     return resolve(reformattedOrderBook)
-#                 })
-#             })
-#         } catch(err){
-#             return Promise.reject(`gdax getOrderBook |> ${err}`)
-#         }
-      
-#     }
 
 #     executeTrade = async (positionChange) => {
 #         try{
@@ -249,6 +216,7 @@ class gdaxService:
             
 #         }
 #     }
+
 
     
 #     availableBalances = async () => {

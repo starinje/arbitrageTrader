@@ -5,17 +5,13 @@ from services.gdaxService import gdaxService
 import gdax
 import sys
 
-print config
-
-
 geminiService  = geminiService(config['gemini'])
-gdaxService = gdaxService(config, gdax)
+gdaxService = gdaxService(config['gdax'], gdax)
 
 def calculateBidPrice(bids, ethereumTradingQuantity):
     try:
-
         priceLevel = filter(lambda bid: float(bid['amount']) >= ethereumTradingQuantity, bids)
-
+   
         if len(priceLevel) > 0:
             return float(priceLevel[0]['price'])
         else:
@@ -34,9 +30,50 @@ def calculateAskPrice(asks, ethereumTradingQuantity):
     except Exception as e: 
             print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
+def determineCurrentEthereumPosition():
+    try: 
+        currentGeminiBalances = geminiService.availableBalances()
+    
+        geminiUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGeminiBalances)
+        geminiUsdBalance = float(geminiUsdBalance[0]['amount'])
+
+        geminiEthBalance = filter(lambda accountDetails: accountDetails['currency'] == 'ETH', currentGeminiBalances)
+        geminiEthBalance = float(geminiEthBalance[0]['amount'])
+
+
+        currentGdaxBalances = gdaxService.availableBalances()
+        print currentGdaxBalances
+    
+        gdaxUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGdaxBalances)
+        gdaxUsdBalance = float(gdaxUsdBalance[0]['balance'])
+
+        gdaxEthBalance = filter(lambda accountDetails: accountDetails['currency'] == 'ETH', currentGdaxBalances)
+        gdaxEthBalance = float(gdaxEthBalance[0]['balance'])
+
+        print "geminiEthBalance: " + str(geminiEthBalance)
+        print "geminiUsdBalance: " + str(geminiUsdBalance)
+        print "gdaxEthBalance: " + str(gdaxEthBalance)
+        print "gdaxUsdBalance: " + str(gdaxUsdBalance)
+
+        ethereumTradingQuantity = config['ethereumTradingQuantity']
+        ethereumBalance = None
+
+        if geminiEthBalance >= ethereumTradingQuantity and gdaxEthBalance >= ethereumTradingQuantity:
+            ethereumBalance = 'either'
+        elif geminiEthBalance >= gdaxEthBalance:
+            ethereumBalance = 'gemini'
+        elif gdaxEthBalance >= geminiEthBalance:
+            ethereumBalance = 'gdax'
+        
+        print 'ethereum balance is in ' + ethereumBalance
+
+        return ethereumBalance
+    except Exception as e: 
+            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
+
+
 def determinePositionChange(orderBooks):
     try: 
-        print 'in determinePositionChange function...'
         ethereumTradingQuantity = config['ethereumTradingQuantity']
         takeProfitTradeThreshold = config['takeProfitTradeThreshold']
         swapFundsTradeThreshold = config['swapFundsTradeThreshold']
@@ -55,31 +92,22 @@ def determinePositionChange(orderBooks):
         gdaxRateIsHigherAndProfitable = gdaxBasePercentageDifference > takeProfitTradeThreshold
         geminiRateIsSwappable = geminiBasePercentageDifference > swapFundsTradeThreshold
 
-        positionChange = null
-        estimatedTransactionFees = null
-        estimatedGrossProfit = null
-        estimatedNetProfit = null
+        positionChange = None
+        estimatedTransactionFees = None
+        estimatedGrossProfit = None
+        estimatedNetProfit = None
 
         print ''
-        print "Sell on Gemini for " + bidPriceGemini
-        print "Buy on Gdax for " + askPriceGdax
-        print "Percent Difference: " + geminiBasePercentageDifference
+        print "Sell on Gemini for " + str(bidPriceGemini)
+        print "Buy on Gdax for " + str(askPriceGdax)
+        print "Percent Difference: " + str(geminiBasePercentageDifference)
 
         print ''
-        print "Sell on Gdax for " + bidPriceGdax
-        print "Buy on Gemini for " + askPriceGemini
-        print "Percent Difference: " + gdaxBasePercentageDifference
+        print "Sell on Gdax for " + str(bidPriceGdax)
+        print "Buy on Gemini for " + str(askPriceGemini)
+        print "Percent Difference: " + str(gdaxBasePercentageDifference)
 
         if gdaxRateIsHigherAndProfitable:
-
-            print "bidPriceGemini: " + bidPriceGemini
-            print "bidPriceGdax: " + bidPriceGdax
-            print "askPriceGemini: " + askPriceGemini
-            print "askPriceGdax: " + askPriceGdax
-        
-            print "gdaxBasePercentageDifference: " + gdaxBasePercentageDifference
-            print "geminiBasePercentageDifference: " + geminiBasePercentageDifference
-
             print "gdax rate is higher and profitable"
 
             totalSaleValue = bidPriceGdax*ethereumTradingQuantity
@@ -88,11 +116,11 @@ def determinePositionChange(orderBooks):
             estimatedTransactionFees = ((transactionPercentageGdax/100)*totalSaleValue) + ((transactionPercentageGemini/100)*totalPurchaseCost)
             estimatedNetProfit = estimatedGrossProfit - estimatedTransactionFees
             
-            print "estimated total sale value: " + totalSaleValue
-            print "estimated total purchase cost: " + totalPurchaseCost
-            print "estimated gross profit: " + estimatedGrossProfit
-            print "estimated transaction fees: " + estimatedTransactionFees
-            print "estimated net profit: " + estimatedNetProfit
+            print "estimated total sale value: " + str(totalSaleValue)
+            print "estimated total purchase cost: " + str(totalPurchaseCost)
+            print "estimated gross profit: " + str(estimatedGrossProfit)
+            print "estimated transaction fees: " + str(estimatedTransactionFees)
+            print "estimated net profit: " + str(estimatedNetProfit)
         
             positionChange = {
                 'takeProfit': 'gdax',
@@ -110,13 +138,6 @@ def determinePositionChange(orderBooks):
                 }
             }
         elif geminiRateIsSwappable:
-            print "bidPriceGemini: " + bidPriceGemini
-            print "bidPriceGdax: " + bidPriceGdax
-            print "askPriceGemini: " + askPriceGemini
-            print "askPriceGdax: " + askPriceGdax
-
-            print "gdaxBasePercentageDifference: " + gdaxBasePercentageDifference
-            print "geminiBasePercentageDifference: " + geminiBasePercentageDifference
             print "gemini rate is higher and profitable"
 
             totalSaleValue = bidPriceGemini*ethereumTradingQuantity
@@ -125,11 +146,11 @@ def determinePositionChange(orderBooks):
             estimatedTransactionFees = ((transactionPercentageGemini/100)*totalSaleValue) + ((transactionPercentageGdax/100)*totalPurchaseCost)
             estimatedNetProfit = estimatedGrossProfit - estimatedTransactionFees
             
-            print "estimated total sale value: " + totalSaleValue
-            print "estimated total purchase cost: " + totalPurchaseCost
-            print "estimated gross profit: " + estimatedGrossProfit
-            print "estimated transaction fees: " + estimatedTransactionFees
-            print "estimated net profit: " + estimatedNetProfit
+            print "estimated total sale value: " + str(totalSaleValue)
+            print "estimated total purchase cost: " + str(totalPurchaseCost)
+            print "estimated gross profit: " + str(estimatedGrossProfit)
+            print "estimated transaction fees: " + str(estimatedTransactionFees)
+            print "estimated net profit: " + str(estimatedNetProfit)
 
             positionChange= {
                 'takeProfit' : 'gemini',
@@ -154,7 +175,7 @@ def determinePositionChange(orderBooks):
 
         if exchangeWithEthereumBalance == 'either':
             return positionChange
-        elif positionChange[exchangeWithEthereumBalance][action] == 'sell':
+        elif positionChange[exchangeWithEthereumBalance]['action'] == 'sell':
             return positionChange
         else:
             return 'none'
@@ -164,17 +185,8 @@ def determinePositionChange(orderBooks):
 def main():
     
     try: 
-        print '****************************************************'
-
-        geminiBalances = geminiService.availableBalances()
-        print geminiBalances
-        
         orderBookGdax = gdaxService.getOrderBook()
         orderBookGemini = geminiService.getOrderBook()
-
-        print orderBookGdax
-        print '++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
-        print orderBookGemini
 
         orderBooks = {
             'gdax': orderBookGdax,
@@ -184,11 +196,13 @@ def main():
         positionChange = determinePositionChange(orderBooks)
         
 
-        # if positionChange == 'none':
-        #     return 
-        
-        # print '****************************NEW TRADE****************************' 
+        if positionChange == 'none':
+            print 'no trade opportunity'
+            print ''
+            return 
 
+        print positionChange
+        
         # tradeResults = executeTrade(positionChange)
 
         # gdaxResults = tradeResults['gdax']
@@ -202,7 +216,7 @@ def main():
         #     sellValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
         
         # if tradeResults['takeProfit'] == 'gemini':
-        #     sellValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount'] - tradeResults['gemini']['fee']
+        #     sellValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
         #     buyValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
 
         # profit = (sellValue - buyValue) / buyValue
@@ -216,7 +230,6 @@ def main():
         print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
     finally: 
-        print config['timeDelta']
         time.sleep(config['timeDelta'])
         main()
 
@@ -255,43 +268,3 @@ def execute(positionChange):
     except Exception as e: 
             print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
-def determineCurrentEthereumPosition():
-    try: 
-        currentGeminiBalances = geminiService.availableBalances()
-    
-        geminiUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGeminiBalances)
-        geminiUsdBalance = float(geminiUsdBalance[0]['amount'])
-
-        geminiEthBalance = filter(lambda accountDetails: accountDetails['currency'] == 'ETH', currentGeminiBalances)
-        geminiEthBalance = float(geminiEthBalance[0]['amount'])
-
-
-        currentGdaxBalances = gdaxService.availableBalances()
-    
-        gdaxUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGdaxBalances)
-        gdaxUsdBalance = float(gdaxUsdBalance[0]['balance'])
-
-        gdaxEthBalance = filter(lambda accountDetails: accountDetails['currency'] == 'ETH', currentGdaxBalances)
-        gdaxEthBalance = float(gdaxEthBalance[0]['balance'])
-
-        print "geminiEthBalance: " + geminiEthBalance
-        print "geminiUsdBalance: " + geminiUsdBalance
-        print "gdaxEthBalance: " + gdaxEthBalance
-        print "gdaxUsdBalance: " + gdaxUsdBalance
-
-
-        ethereumTradingQuantity = config['ethereumTradingQuantity']
-        ethereumBalance = null
-
-        if geminiEthBalance >= ethereumTradingQuantity and gdaxEthBalance >= ethereumTradingQuantity:
-            ethereumBalance = 'either'
-        elif geminiEthBalance >= gdaxEthBalance:
-            ethereumBalance = 'gemini'
-        elif gdaxEthBalance >= geminiEthBalance:
-            ethereumBalance = 'gdax'
-        
-        print 'ethereum balance is in ' + ethereumBalance
-
-        return ethereumBalance
-    except Exception as e: 
-            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
