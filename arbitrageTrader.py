@@ -4,6 +4,7 @@ from services.geminiService import geminiService
 from services.gdaxService import gdaxService
 import gdax
 import sys
+import threading
 
 geminiService  = geminiService(config['gemini'])
 gdaxService = gdaxService(config['gdax'], gdax)
@@ -42,7 +43,6 @@ def determineCurrentEthereumPosition():
 
 
         currentGdaxBalances = gdaxService.availableBalances()
-        print currentGdaxBalances
     
         gdaxUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGdaxBalances)
         gdaxUsdBalance = float(gdaxUsdBalance[0]['balance'])
@@ -182,6 +182,42 @@ def determinePositionChange(orderBooks):
     except Exception as e: 
         print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
+
+
+def execute(positionChange):
+    try:
+
+        print 'in execute function...'
+
+        geminiTradeResults = None
+        gdaxTradeResults = None
+        jobs = []
+
+        thread1 = threading.Thread(target=gdaxService.executeTrade(positionChange, gdaxTradeResults))
+        thread2 = threading.Thread(target=geminiService.executeTrade(positionChange, geminiTradeResults))
+
+        jobs.append(thread1)
+        jobs.append(thread2)
+
+        for j in jobs:
+            j.start()
+
+        for j in jobs:
+            j.join()
+
+        # print "List processing complete."
+        # let tradeResults = await Promise.all([gdaxService.executeTrade(positionChange), geminiService.executeTrade(positionChange)])
+
+        tradeLog = {
+            'gdax': gdaxTradeResults,
+            'gemini': geminiTradeResults,
+            'takeProfit': positionChange['takeProfit']
+        }
+
+        return tradeLog
+    except Exception as e: 
+            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
+
 def main():
     
     try: 
@@ -200,32 +236,30 @@ def main():
             print 'no trade opportunity'
             print ''
             return 
-
-        print positionChange
         
-        # tradeResults = executeTrade(positionChange)
+        tradeResults = execute(positionChange)
 
-        # gdaxResults = tradeResults['gdax']
-        # geminiResults = tradeResults['gemini']
+        gdaxResults = tradeResults['gdax']
+        geminiResults = tradeResults['gemini']
 
-        # buyValue = null
-        # sellValue = null
+        buyValue = None
+        sellValue = None
 
-        # if tradeResults['takeProfit'] == 'gdax':
-        #     buyValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
-        #     sellValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
+        if tradeResults['takeProfit'] == 'gdax':
+            buyValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
+            sellValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
         
-        # if tradeResults['takeProfit'] == 'gemini':
-        #     sellValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
-        #     buyValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
+        if tradeResults['takeProfit'] == 'gemini':
+            sellValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
+            buyValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
 
-        # profit = (sellValue - buyValue) / buyValue
+        profit = (sellValue - buyValue) / buyValue
 
-        # print "successful " + tradeResults['gdax']['action'] + "on Gdax for " + tradeResults['gdax']['amount'] + "ethereum at " + tradeResults['gdax']['price'] + "/eth, fee of " + tradeResults['gdax']['fee']
-        # print "successful " + tradeResults['gemini']['action'] + "on Gemini for " + tradeResults['gemini']['amount'] + "ethereum at " + tradeResults['gemini']['price'] + "/eth, fee of " + tradeResults['gemini']['fee']
+        print "successful " + tradeResults['gdax']['action'] + "on Gdax for " + tradeResults['gdax']['amount'] + "ethereum at " + tradeResults['gdax']['price'] + "/eth, fee of " + tradeResults['gdax']['fee']
+        print "successful " + tradeResults['gemini']['action'] + "on Gemini for " + tradeResults['gemini']['amount'] + "ethereum at " + tradeResults['gemini']['price'] + "/eth, fee of " + tradeResults['gemini']['fee']
 
-        # print "profit percentage: " + profit
-        # determineCurrentEthereumPosition()
+        print "profit percentage: " + profit
+        determineCurrentEthereumPosition()
     except Exception as e: 
         print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
@@ -237,34 +271,4 @@ main()
 
 
 
-
-def execute(positionChange):
-    try:
-        tradeResults = []
-        jobs = []
-
-        thread1 = threading.Thread(target=gdaxService.executeTrade(positionChange, tradeResults))
-        thread2 = threading.Thread(target=geminiService.executeTrade(positionChange, tradeResults))
-
-        jobs.append(thread1)
-        jobs.append(thread2)
-
-        for j in jobs:
-            j.start()
-
-        for j in jobs:
-            j.join()
-
-        # print "List processing complete."
-        # let tradeResults = await Promise.all([gdaxService.executeTrade(positionChange), geminiService.executeTrade(positionChange)])
-
-        tradeLog = {
-            'gdax': tradeResults[0],
-            'gemini': tradeResults[1],
-            'takeProfit': positionChange['takeProfit']
-        }
-
-        return tradeLog
-    except Exception as e: 
-            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 

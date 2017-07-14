@@ -16,8 +16,8 @@ config = {
         'ethAcountId': '74153015-34f2-444f-8093-2aae38f3d164',
         'orderFillTime': 1
     },
-    'ethereumTradingQuantity': 1,
-    'takeProfitTradeThreshold': -1,
+    'ethereumTradingQuantity': .01,
+    'takeProfitTradeThreshold': 1,
     'swapFundsTradeThreshold': -1,
     'timeDelta': .5,
     'transactionPercentageGemini': .3,
