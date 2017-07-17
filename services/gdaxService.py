@@ -1,6 +1,7 @@
 import simplejson as json
 import base64
 import sys
+import time
 
 class gdaxService:
 
@@ -69,15 +70,21 @@ class gdaxService:
 
     def newOrder(self, params):
         try: 
-            return self.authedClient[params['action']](price=params['price'], size=params['size'], product_id=params['productId'])
+            if params['action']== 'buy':
+                return self.authedClient.buy(price=params['price'], size=params['size'], product_id=params['productId'])
+            elif params['action']== 'sell':
+                return self.authedClient.sell(price=params['price'], size=params['size'], product_id=params['productId'])
         except Exception as e: 
             print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
     
-    def executeTrade(self, positionChange, gdaxTradeResults):
-        try: 
-            return 
-            tradeDetails = positionChange['gdax']
 
+
+    def executeTrade(self, positionChange, gdaxTradeResults):
+        try:
+
+            print 'in gdax executeTrade...'
+
+            tradeDetails = positionChange['gdax']
             counterPrice = positionChange['gemini']['rate']
 
             tradeCompleted = False
@@ -87,11 +94,15 @@ class gdaxService:
             price = None
             tradeQuantity = tradeDetails['quantity']
 
-
             while not tradeCompleted & tradeProfitable:
+                print 'in while loop...'
+                time.sleep(1.1)
                 orderBook = self.getOrderBook()
+                
+                print tradeDetails
 
                 if tradeDetails['action'] == 'buy':
+
                     lowestSellPriceLevel = filter(lambda ask: float(ask['amount']) >= tradeQuantity, orderBook['asks'])
 
                     if len(lowestSellPriceLevel) > 0:
@@ -99,11 +110,12 @@ class gdaxService:
                     else:
                         continue
                     
-                    if price >= counterPrice:
-                        tradeProfitable = False
-                        continue
+                    # if price >= counterPrice:
+                    #     tradeProfitable = False
+                    #     continue
 
                 if tradeDetails['action'] == 'sell':
+                    
                     highestBuyPriceLevel = filter(lambda bid: float(bid['amount']) >= tradeQuantity, orderBook['bids'])
 
                     if len(highestBuyPriceLevel) > 0:
@@ -111,12 +123,14 @@ class gdaxService:
                     else:
                         continue
                     
-                    if price <= counterPrice:
-                        tradeProfitable = False
-                        continue
+                    # if price <= counterPrice:
+                    #     tradeProfitable = False
+
+                    #     continue
 
 
-                print 'placing' + tradeDetails['action'] + 'trade on Gdax for ' + str(tradeDetails['quantity']) + 'ethereum at ' + str(price) + '/eth'
+                print 'placing ' + tradeDetails['action'] + ' trade on Gdax for ' + str(tradeDetails['quantity']) + ' ethereum at ' + str(price) + '/eth'
+
 
                 orderParams = {
                     'productId': 'ETH-USD',
@@ -125,32 +139,36 @@ class gdaxService:
                     'action': tradeDetails['action']
                 }
 
-
                 if orderParams['price'] < 100 or orderParams['price'] > 400:
                     print 'failed gdax price sanity check. price: ' + str(orderParams['price'])
                     sys.exit()
 
+                print orderParams
+
                 orderResults = self.newOrder(orderParams)
 
-                if orderResults['is_cancelled']:
-                    print 'gemini order could not be submitted'
-                    print orderResults
-                    continue
+                print orderResults
 
-                time.sleep(2)
+                # if not orderResults['order_id']:
+                #     print 'gemini order could not be submitted'
+                #     continue
 
                 while not tradeCompleted:
-                    time.sleep(1)
-                    tradeStatus = self.orderStatus(orderResults['id'])
+                    time.sleep(.5)
+                    tradeStatus = self.orderStatus(orderResults['order_id'])
                     if tradeStatus['filled_size'] == tradeStatus['size']:
-                        tradeCompleted = true
+                        tradeCompleted = True
                         finalOrderResults = orderResults
                         continue
                     else:
+                        print 'canceling all orders...'
                         self.cancelOrders()
                         tradeQuantity = float(tradeStatus['size']) - float(tradeStatus['filled_size'])
-                        continue
-
+                        print 'new trading quantity: ' + tradeQuantity
+                        positionChange = positionChange.copy()
+                        positionChange['quantity'] = tradeQuantity
+                        self.executeTrade(positionChange, geminiTradeResults)
+                        
                 if tradeCompleted:
                     finalTradeResults = {
                         'fee': float(finalOrderResults['fill_fees']),

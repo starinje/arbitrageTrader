@@ -34,13 +34,13 @@ def calculateAskPrice(asks, ethereumTradingQuantity):
 def determineCurrentEthereumPosition():
     try: 
         currentGeminiBalances = geminiService.availableBalances()
-    
+  
         geminiUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGeminiBalances)
+
         geminiUsdBalance = float(geminiUsdBalance[0]['amount'])
 
         geminiEthBalance = filter(lambda accountDetails: accountDetails['currency'] == 'ETH', currentGeminiBalances)
         geminiEthBalance = float(geminiEthBalance[0]['amount'])
-
 
         currentGdaxBalances = gdaxService.availableBalances()
     
@@ -167,6 +167,7 @@ def determinePositionChange(orderBooks):
                     'rate' : askPriceGdax
                 }
             }
+
         else:
             positionChange = 'none'
             return positionChange
@@ -183,10 +184,8 @@ def determinePositionChange(orderBooks):
         print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
 
-
 def execute(positionChange):
     try:
-
         print 'in execute function...'
 
         geminiTradeResults = None
@@ -204,9 +203,6 @@ def execute(positionChange):
 
         for j in jobs:
             j.join()
-
-        # print "List processing complete."
-        # let tradeResults = await Promise.all([gdaxService.executeTrade(positionChange), geminiService.executeTrade(positionChange)])
 
         tradeLog = {
             'gdax': gdaxTradeResults,
@@ -268,6 +264,15 @@ def main():
         main()
 
 main()
+
+
+# TODO
+# calculate NONCE for subsecond operation
+# check for positive execution - not negative
+# get gdax execute_order function working 
+# open up gdax account under beths name
+# test code with 1 ethereum trading on both accounts
+
 
 
 

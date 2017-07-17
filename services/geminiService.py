@@ -6,6 +6,9 @@ import hashlib
 import requests
 import json
 import sys
+import moment
+import datetime
+import arrow
 
 def createRequestConfig(key, secret, payload):
 	encodedPayload = base64.b64encode(json.dumps(payload))
@@ -19,7 +22,10 @@ def createRequestConfig(key, secret, payload):
 	return config
 
 def nonce_time():
-	return str(int(time.time()) * 1000)
+    nonce = time.time()
+    nonce = float(str(nonce).replace(".", ""))*100000
+    return str(nonce)
+
 
 def nonce_uuid():
 	return uuid.uuid4().hex
@@ -87,7 +93,6 @@ class geminiService:
 
             print 'in gemini executeTrade...'
 
-
             tradeDetails = positionChange['gemini']
             counterPrice = positionChange['gdax']['rate']
 
@@ -100,7 +105,7 @@ class geminiService:
 
             while not tradeCompleted & tradeProfitable:
                 print 'in while loop...'
-                time.sleep(1)
+                time.sleep(1.1)
                 orderBook = self.getOrderBook()
 
                 if tradeDetails['action'] == 'buy':
@@ -126,9 +131,7 @@ class geminiService:
                     
                     # if price <= counterPrice:
                     #     tradeProfitable = False
-
                     #     continue
-
 
                 print 'placing ' + tradeDetails['action'] + ' trade on Gemini for ' + str(tradeDetails['quantity']) + ' ethereum at ' + str(price) + '/eth'
 
@@ -145,20 +148,15 @@ class geminiService:
                     print 'failed gemini price sanity check. price: ' + str(orderParams['price'])
                     sys.exit()
 
-                orderResults = self.newOrder(orderParams)
+                # orderResults = self.newOrder(orderParams)
 
-                print orderResults
-
-                if orderResults['is_cancelled']:
+                if not orderResults['order_id']:
                     print 'gemini order could not be submitted'
-                    print orderResults
                     continue
 
-
                 while not tradeCompleted:
-                    
+                    time.sleep(.5)
                     tradeStatus = self.orderStatus(orderResults['order_id'])
-                    print tradeStatus
                     if tradeStatus['executed_amount'] == tradeStatus['original_amount']:
                         tradeCompleted = True
                         finalOrderResults = orderResults
@@ -168,11 +166,12 @@ class geminiService:
                         self.cancelOrders()
                         tradeQuantity = float(tradeStatus['original_amount']) - float(tradeStatus['executed_amount'])
                         print 'new trading quantity: ' + tradeQuantity
-                        continue
-
+                        positionChange = positionChange.copy()
+                        positionChange['quantity'] = tradeQuantity
+                        self.executeTrade(positionChange, geminiTradeResults)
+                        
                 if tradeCompleted:
                         tradeSummary = self.orderHistory(finalOrderResults['order_id'])
-                        print tradeSummary
                         finalTradeResults  = tradeSummary.copy()
 
                         finalTradeResults['action'] = tradeDetails['action']
