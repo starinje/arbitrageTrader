@@ -5,6 +5,7 @@ from services.gdaxService import gdaxService
 import gdax
 import sys
 import threading
+from multiprocessing import Process, Queue
 
 geminiService  = geminiService(config['gemini'])
 gdaxService = gdaxService(config['gdax'], gdax)
@@ -188,21 +189,27 @@ def execute(positionChange):
     try:
         print 'in execute function...'
 
-        geminiTradeResults = None
-        gdaxTradeResults = None
-        jobs = []
+        processes = []
+        gdaxTradeResults = Queue()
+        geminiTradeResults = Queue()
 
-        thread1 = threading.Thread(target=gdaxService.executeTrade(positionChange, gdaxTradeResults))
-        thread2 = threading.Thread(target=geminiService.executeTrade(positionChange, geminiTradeResults))
+        process1 = Process(target=gdaxService.executeTrade, args=(positionChange, gdaxTradeResults))
+        process2 = Process(target=geminiService.executeTrade, args=(positionChange, geminiTradeResults))
 
-        jobs.append(thread1)
-        jobs.append(thread2)
+        processes.append(process1)
+        processes.append(process2)
 
-        for j in jobs:
-            j.start()
+        for p in processes:
+            p.start()
 
-        for j in jobs:
-            j.join()
+        for p in processes:
+            p.join()
+
+        gdaxTradeResults = gdaxTradeResults.get()
+        geminiTradeResults = geminiTradeResults.get()
+
+        gdaxTradeResults = gdaxTradeResults[0]
+        geminiTradeResults = geminiTradeResults[0]
 
         tradeLog = {
             'gdax': gdaxTradeResults,
@@ -251,10 +258,10 @@ def main():
 
         profit = (sellValue - buyValue) / buyValue
 
-        print "successful " + tradeResults['gdax']['action'] + "on Gdax for " + tradeResults['gdax']['amount'] + "ethereum at " + tradeResults['gdax']['price'] + "/eth, fee of " + tradeResults['gdax']['fee']
-        print "successful " + tradeResults['gemini']['action'] + "on Gemini for " + tradeResults['gemini']['amount'] + "ethereum at " + tradeResults['gemini']['price'] + "/eth, fee of " + tradeResults['gemini']['fee']
+        print "successful " + tradeResults['gdax']['action'] + "on Gdax for " + str(tradeResults['gdax']['amount']) + "ethereum at " + str(tradeResults['gdax']['price']) + "/eth, fee of " + str(tradeResults['gdax']['fee'])
+        print "successful " + tradeResults['gemini']['action'] + "on Gemini for " + str(tradeResults['gemini']['amount']) + "ethereum at " + str(tradeResults['gemini']['price']) + "/eth, fee of " + str(tradeResults['gemini']['fee'])
 
-        print "profit percentage: " + profit
+        print "profit percentage: " + str(profit)
         determineCurrentEthereumPosition()
     except Exception as e: 
         print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)

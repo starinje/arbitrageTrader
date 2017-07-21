@@ -40,6 +40,7 @@ class geminiService:
         
 
     def requestPrivate(self, endpoint, params):
+        time.sleep(1)
         requestUrl = self.baseUrl + endpoint
 
         payload = params.copy()
@@ -90,9 +91,8 @@ class geminiService:
 
     def executeTrade(self, positionChange, geminiTradeResults):
         try:
-
             print 'in gemini executeTrade...'
-
+            
             tradeDetails = positionChange['gemini']
             counterPrice = positionChange['gdax']['rate']
 
@@ -104,8 +104,7 @@ class geminiService:
             tradeQuantity = tradeDetails['quantity']
 
             while not tradeCompleted & tradeProfitable:
-                print 'in while loop...'
-                time.sleep(1.1)
+                # time.sleep(1.1)
                 orderBook = self.getOrderBook()
 
                 if tradeDetails['action'] == 'buy':
@@ -116,9 +115,9 @@ class geminiService:
                     else:
                         continue
                     
-                    if price >= counterPrice:
-                        tradeProfitable = False
-                        continue
+                    # if price >= counterPrice:
+                    #     tradeProfitable = False
+                    #     continue
 
                 if tradeDetails['action'] == 'sell':
                     
@@ -148,14 +147,15 @@ class geminiService:
                     print 'failed gemini price sanity check. price: ' + str(orderParams['price'])
                     sys.exit()
 
-                # orderResults = self.newOrder(orderParams)
+                orderResults = self.newOrder(orderParams)
+                print orderResults
 
-                if not orderResults['order_id']:
+                if 'order_id' not in orderResults:
                     print 'gemini order could not be submitted'
                     continue
 
                 while not tradeCompleted:
-                    time.sleep(.5)
+                    time.sleep(2)
                     tradeStatus = self.orderStatus(orderResults['order_id'])
                     if tradeStatus['executed_amount'] == tradeStatus['original_amount']:
                         tradeCompleted = True
@@ -165,21 +165,21 @@ class geminiService:
                         print 'canceling all orders...'
                         self.cancelOrders()
                         tradeQuantity = float(tradeStatus['original_amount']) - float(tradeStatus['executed_amount'])
-                        print 'new trading quantity: ' + tradeQuantity
+                        print 'new trading quantity: ' + str(tradeQuantity)
                         positionChange = positionChange.copy()
                         positionChange['quantity'] = tradeQuantity
                         self.executeTrade(positionChange, geminiTradeResults)
                         
-                if tradeCompleted:
-                        tradeSummary = self.orderHistory(finalOrderResults['order_id'])
-                        finalTradeResults  = tradeSummary.copy()
+            if tradeCompleted:
+                    tradeSummary = self.orderHistory(finalOrderResults['order_id'])
+                    finalTradeResults  = tradeSummary.copy()
 
-                        finalTradeResults['action'] = tradeDetails['action']
-                        geminiTradeResults = finalTradeResults
-                        return 
-                elif not tradeProfitable:
-                    print tradeDetails['action'] + 'on gemini for ' + tradeDetails['quantity'] + 'ethereum at ' + price + '/eth was unsuccesful - order book no longer profitable'
-                    sys.exit()
+                    finalTradeResults['action'] = tradeDetails['action']
+                    geminiTradeResults.put([finalTradeResults])
+                    return 
+            elif not tradeProfitable:
+                print tradeDetails['action'] + 'on gemini for ' + tradeDetails['quantity'] + 'ethereum at ' + price + '/eth was unsuccesful - order book no longer profitable'
+                sys.exit()
 
         except Exception as e: 
             print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
@@ -215,7 +215,7 @@ class geminiService:
     def orderHistory(self, orderId):
         try: 
             trades = self.requestPrivate('/mytrades', { 'symbol': 'ETHUSD'} )
-
+        
             orderTrades = filter(lambda trade: trade['order_id'] == orderId, trades)
 
             fee = 0
