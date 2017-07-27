@@ -171,16 +171,20 @@ def determinePositionChange(orderBooks):
 
         else:
             positionChange = 'none'
-            return positionChange
+            
+        return positionChange
         
-        exchangeWithEthereumBalance = determineCurrentEthereumPosition()
+        # exchangeWithEthereumBalance = determineCurrentEthereumPosition()
+        # # logic here to see if trade is possible
+        # #tradePossible = determineIfTradeIsPossible(positionChange)
+        # i
 
-        if exchangeWithEthereumBalance == 'either':
-            return positionChange
-        elif positionChange[exchangeWithEthereumBalance]['action'] == 'sell':
-            return positionChange
-        else:
-            return 'none'
+        # if exchangeWithEthereumBalance == 'either':
+        #     return positionChange
+        # elif positionChange[exchangeWithEthereumBalance]['action'] == 'sell':
+        #     return positionChange
+        # else:
+        #     return 'none'
     except Exception as e: 
         print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
@@ -221,6 +225,22 @@ def execute(positionChange):
     except Exception as e: 
             print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
+
+def isTradePossible(positionChange):
+    try:
+        # logic here to check current balances in both exchanges
+        # check if account to sell on has tradeQty of eth 
+        # check if account to buy on has enough USD (plus margin)
+        #   to do this perhaps check current buy price plus transaction cost plus margin
+        # if both conditions are true then return true 
+        # otherwise print out current balances and return false
+        
+        return True
+       
+    except Exception as e: 
+            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
+
+
 def main():
     
     try: 
@@ -234,35 +254,49 @@ def main():
 
         positionChange = determinePositionChange(orderBooks)
         
-
         if positionChange == 'none':
             print 'no trade opportunity'
             print ''
             return 
+
+        print 'positionChange: '
+        print positionChange
         
-        tradeResults = execute(positionChange)
+        tradePossible = isTradePossible(positionChange)
 
-        gdaxResults = tradeResults['gdax']
-        geminiResults = tradeResults['gemini']
+        print 'tradePossible: '
+        print tradePossible
 
-        buyValue = None
-        sellValue = None
+        if tradePossible:
+            print 'trade is possible - executing...'
+            return 
+            # tradeResults = execute(positionChange)
 
-        if tradeResults['takeProfit'] == 'gdax':
-            buyValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
-            sellValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
-        
-        if tradeResults['takeProfit'] == 'gemini':
-            sellValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
-            buyValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
+            gdaxResults = tradeResults['gdax']
+            geminiResults = tradeResults['gemini']
 
-        profit = (sellValue - buyValue) / buyValue
+            buyValue = None
+            sellValue = None
 
-        print "successful " + tradeResults['gdax']['action'] + "on Gdax for " + str(tradeResults['gdax']['amount']) + "ethereum at " + str(tradeResults['gdax']['price']) + "/eth, fee of " + str(tradeResults['gdax']['fee'])
-        print "successful " + tradeResults['gemini']['action'] + "on Gemini for " + str(tradeResults['gemini']['amount']) + "ethereum at " + str(tradeResults['gemini']['price']) + "/eth, fee of " + str(tradeResults['gemini']['fee'])
+            if tradeResults['takeProfit'] == 'gdax':
+                buyValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
+                sellValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
+            
+            if tradeResults['takeProfit'] == 'gemini':
+                sellValue = (tradeResults['gemini']['price']*tradeResults['gemini']['amount']) - tradeResults['gemini']['fee']
+                buyValue = (tradeResults['gdax']['price']*tradeResults['gdax']['amount']) - tradeResults['gdax']['fee']
 
-        print "profit percentage: " + str(profit)
-        determineCurrentEthereumPosition()
+            profit = (sellValue - buyValue) / buyValue
+
+            print "successful " + tradeResults['gdax']['action'] + "on Gdax for " + str(tradeResults['gdax']['amount']) + "ethereum at " + str(tradeResults['gdax']['price']) + "/eth, fee of " + str(tradeResults['gdax']['fee'])
+            print "successful " + tradeResults['gemini']['action'] + "on Gemini for " + str(tradeResults['gemini']['amount']) + "ethereum at " + str(tradeResults['gemini']['price']) + "/eth, fee of " + str(tradeResults['gemini']['fee'])
+
+            print "profit percentage: " + str(profit)
+            determineCurrentEthereumPosition()
+        else:
+            print 'trade is not possible'
+            sys.exit()
+
     except Exception as e: 
         print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
