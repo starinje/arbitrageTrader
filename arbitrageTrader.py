@@ -72,6 +72,46 @@ def determineCurrentEthereumPosition():
     except Exception as e: 
             print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
+def determineExchangeBalances():
+    try: 
+        currentGeminiBalances = geminiService.availableBalances()
+  
+        geminiUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGeminiBalances)
+
+        geminiUsdBalance = float(geminiUsdBalance[0]['amount'])
+
+        geminiEthBalance = filter(lambda accountDetails: accountDetails['currency'] == 'ETH', currentGeminiBalances)
+        geminiEthBalance = float(geminiEthBalance[0]['amount'])
+
+        currentGdaxBalances = gdaxService.availableBalances()
+    
+        gdaxUsdBalance = filter(lambda accountDetails: accountDetails['currency'] == 'USD', currentGdaxBalances)
+        gdaxUsdBalance = float(gdaxUsdBalance[0]['balance'])
+
+        gdaxEthBalance = filter(lambda accountDetails: accountDetails['currency'] == 'ETH', currentGdaxBalances)
+        gdaxEthBalance = float(gdaxEthBalance[0]['balance'])
+
+        print "geminiEthBalance: " + str(geminiEthBalance)
+        print "geminiUsdBalance: " + str(geminiUsdBalance)
+        print "gdaxEthBalance: " + str(gdaxEthBalance)
+        print "gdaxUsdBalance: " + str(gdaxUsdBalance)
+
+        ethereumTradingQuantity = config['ethereumTradingQuantity']
+        ethereumBalance = None
+
+        if geminiEthBalance >= ethereumTradingQuantity and gdaxEthBalance >= ethereumTradingQuantity:
+            ethereumBalance = 'either'
+        elif geminiEthBalance >= gdaxEthBalance:
+            ethereumBalance = 'gemini'
+        elif gdaxEthBalance >= geminiEthBalance:
+            ethereumBalance = 'gdax'
+        
+        print 'ethereum balance is in ' + ethereumBalance
+
+        return ethereumBalance
+    except Exception as e: 
+            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
+
 
 def determinePositionChange(orderBooks):
     try: 
@@ -173,18 +213,6 @@ def determinePositionChange(orderBooks):
             positionChange = 'none'
             
         return positionChange
-        
-        # exchangeWithEthereumBalance = determineCurrentEthereumPosition()
-        # # logic here to see if trade is possible
-        # #tradePossible = determineIfTradeIsPossible(positionChange)
-        # i
-
-        # if exchangeWithEthereumBalance == 'either':
-        #     return positionChange
-        # elif positionChange[exchangeWithEthereumBalance]['action'] == 'sell':
-        #     return positionChange
-        # else:
-        #     return 'none'
     except Exception as e: 
         print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 
@@ -228,13 +256,16 @@ def execute(positionChange):
 
 def isTradePossible(positionChange):
     try:
-        # logic here to check current balances in both exchanges
+        #exchangeBalances = determineExchangeBalances()
+        # should return dict of both exchange balances...
+
+        # use code from determineEthereumBalance to flesh this function out...
+        # logic here to get current balances in both exchanges
         # check if account to sell on has tradeQty of eth 
         # check if account to buy on has enough USD (plus margin)
         #   to do this perhaps check current buy price plus transaction cost plus margin
         # if both conditions are true then return true 
         # otherwise print out current balances and return false
-        
         return True
        
     except Exception as e: 
