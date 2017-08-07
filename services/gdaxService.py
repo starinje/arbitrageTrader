@@ -77,11 +77,8 @@ class gdaxService:
         except Exception as e: 
             print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
     
-
-
     def executeTrade(self, positionChange, gdaxTradeResults):
         try:
-            print 'in gdax executeTrade...'
          
             tradeDetails = positionChange['gdax']
             counterPrice = positionChange['gemini']['rate']
@@ -93,9 +90,7 @@ class gdaxService:
             price = None
             tradeQuantity = tradeDetails['quantity']
 
-            while not tradeCompleted & tradeProfitable:
-
-                time.sleep(1.1)
+            while not tradeCompleted and tradeProfitable:
                 orderBook = self.getOrderBook()
            
                 if tradeDetails['action'] == 'buy':
@@ -122,9 +117,7 @@ class gdaxService:
                     
                     # if price <= counterPrice:
                     #     tradeProfitable = False
-
                     #     continue
-
 
                 print 'placing ' + tradeDetails['action'] + ' trade on Gdax for ' + str(tradeDetails['quantity']) + ' ethereum at ' + str(price) + '/eth'
 
@@ -142,25 +135,26 @@ class gdaxService:
                 orderResults = self.newOrder(orderParams)
 
                 if 'id' not in orderResults:
-                    print 'gemini order could not be submitted'
+                    print 'gdax order could not be submitted'
                     continue
 
-                while not tradeCompleted:
-                    time.sleep(2)
-                    tradeStatus = self.orderStatus(orderResults['id'])
-                    if tradeStatus['filled_size'] == tradeStatus['size']:
-                        tradeCompleted = True
-                        finalOrderResults = orderResults
-                        continue
-                    else:
-                        print 'canceling all orders...'
-                        self.cancelOrders()
-                        tradeQuantity = float(tradeStatus['size']) - float(tradeStatus['filled_size'])
-                        print 'new trading quantity: ' + str(tradeQuantity)
-                        positionChange = positionChange.copy()
-                        positionChange['quantity'] = tradeQuantity
-                        self.executeTrade(positionChange, gdaxTradeResults)
-                        
+                if 'size' in orderResults:
+                    print 'order was sucessfully placed on gdax'
+
+                time.sleep(4)
+
+                tradeStatus = self.orderStatus(orderResults['id'])
+                
+                if tradeStatus['filled_size'] == tradeStatus['size']:
+                    tradeCompleted = True
+                    finalOrderResults = orderResults
+                else:
+                    print 'canceling all orders on gdax'
+                    self.cancelOrders()
+                    tradeQuantity = float(tradeStatus['size']) - float(tradeStatus['filled_size'])
+                    print 'new gdax trading quantity: ' + str(tradeQuantity)
+              
+
             if tradeCompleted:
                 finalTradeResults = {
                     'fee': float(finalOrderResults['fill_fees']),
@@ -172,8 +166,113 @@ class gdaxService:
                 gdaxTradeResults.put([finalTradeResults])
                 return 
             elif not tradeProfitable:
-                print tradeDetails['action'] + 'on gdax for ' + tradeDetails['quantity'] + 'ethereum at ' + price + '/eth was unsuccesful - order book no longer profitable'
+                print tradeDetails['action'] + ' on gdax for ' + str(tradeDetails['quantity']) + ' ethereum at ' + str(price) + '/eth was unsuccesful - order book no longer profitable'
                 sys.exit()
 
         except Exception as e: 
             print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
+
+    def executeMakerTrade(self, positionChange, gdaxTradeResults):
+            try:
+            
+                tradeDetails = positionChange['gdax']
+                counterPrice = positionChange['gemini']['rate']
+
+                tradeCompleted = False
+                tradeProfitable = True
+
+                finalOrderResults = None
+                price = None
+                tradeQuantity = tradeDetails['quantity']
+
+                while not tradeCompleted and tradeProfitable:
+                    orderBook = self.getOrderBook()
+            
+                    if tradeDetails['action'] == 'buy':
+                        highestBuyPriceLevel = orderBook['bids'][0]
+                        price = float(highestBuyPriceLevel['price'])
+                    
+                        # if price >= counterPrice:
+                        #     print 'gdax trade not profitable'
+                        #     tradeProfitable = False
+                        #     continue
+
+                    if tradeDetails['action'] == 'sell':
+                        lowestSellPriceLevel = orderBook['asks'][0]
+                        price = float(lowestSellPriceLevel['price'])
+                        
+                        # if price <= counterPrice:
+                        #     print 'gdax trade not profitable'
+                        #     tradeProfitable = False
+                        #     continue
+
+                    print 'placing ' + tradeDetails['action'] + ' trade on Gdax for ' + str(tradeDetails['quantity']) + ' ethereum at ' + str(price) + '/eth'
+
+                    orderParams = {
+                        'productId': 'ETH-USD',
+                        'size': tradeQuantity,     
+                        'price': price,
+                        'action': tradeDetails['action'],
+                        'post_only': True
+                    }
+
+                    if orderParams['price'] < 100 or orderParams['price'] > 400:
+                        print 'failed gdax price sanity check. price: ' + str(orderParams['price'])
+                        sys.exit()
+
+                    orderResults = self.newOrder(orderParams)
+
+                    if 'id' not in orderResults:
+                        print 'gdax order could not be submitted'
+                        continue
+
+                    if 'size' in orderResults:
+                        print 'order was sucessfully placed on gdax...'
+
+                    priceLevelUnchanged = True
+                    # -- get current status of order
+                    while priceLevelUnchanged:
+                        time.sleep(4)
+                        print 'getting gdax trade status'
+                        tradeStatus = self.orderStatus(orderResults['id'])
+
+                        if tradeStatus['filled_size'] == tradeStatus['size']:
+                            print 'order is complete'
+                            tradeCompleted = True
+                            finalOrderResults = orderResults
+                            break
+                        else:
+                            orderBook = self.getOrderBook()
+
+                            if tradeDetails['action'] == 'buy':
+                                newPriceLevel = float(orderBook['bids'][0]['price'])
+                            
+                            if tradeDetails['action'] == 'sell':
+                                newPriceLevel = float(orderBook['asks'][0]['price'])
+                            
+                            if newPriceLevel == price:
+                                print 'gdax price hasnt changed...'
+                                continue
+                            else:
+                                print 'canceling all orders on gdax...'
+                                self.cancelOrders()
+                                tradeQuantity = float(tradeStatus['size']) - float(tradeStatus['filled_size'])
+                                priceLevelUnchanged = False
+                                print 'new gdax trading quantity: ' + str(tradeQuantity)            
+
+                if tradeCompleted:
+                    finalTradeResults = {
+                        'fee': float(finalOrderResults['fill_fees']),
+                        'amount': float(finalOrderResults['size']),
+                        'price': float(price),
+                        'action': tradeDetails['action']
+                    }
+
+                    gdaxTradeResults.put([finalTradeResults])
+                    return 
+                elif not tradeProfitable:
+                    print tradeDetails['action'] + ' on gdax for ' + str(tradeDetails['quantity']) + ' ethereum at ' + str(price) + '/eth was unsuccesful - order book no longer profitable'
+                    sys.exit()
+
+            except Exception as e: 
+                print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)

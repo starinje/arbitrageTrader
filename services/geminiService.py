@@ -10,6 +10,9 @@ import moment
 import datetime
 import arrow
 
+
+
+
 def createRequestConfig(key, secret, payload):
 	encodedPayload = base64.b64encode(json.dumps(payload))
 	signature = hmac.new(secret, encodedPayload, hashlib.sha384).hexdigest()
@@ -21,11 +24,14 @@ def createRequestConfig(key, secret, payload):
 
 	return config
 
-def nonce_time():
+def nonce_time(self):
     nonce = time.time()
-    nonce = float(str(nonce).replace(".", ""))*100000
-    return str(nonce)
-
+    nonce = str(nonce).split(".", 1)[0] + str(self.nonceIncrement)+'00'
+    if self.nonceIncrement <= 9:
+        self.nonceIncrement = self.nonceIncrement + 1
+    else: 
+        self.nonceIncrement = 0
+    return nonce
 
 def nonce_uuid():
 	return uuid.uuid4().hex
@@ -34,24 +40,24 @@ class geminiService:
 
     def __init__(self, options):
         self.options = options
+        self.nonceIncrement = 0
         subdomain = 'api.sandbox' if self.options['sandbox'] == True else 'api'
         self.baseUrl = 'https://' + subdomain + "." + 'gemini.com/v1'
         return 
-        
-
+    
     def requestPrivate(self, endpoint, params):
-        time.sleep(1)
         requestUrl = self.baseUrl + endpoint
 
         payload = params.copy()
         payload['request'] = "/v1" + endpoint
-        payload['nonce'] = nonce_time()
+        payload['nonce'] = nonce_time(self)
 
         config = createRequestConfig(self.options["key"], self.options["secret"], payload)
     
         r = requests.post(requestUrl, headers=config)
-
         return json.loads(r.text)
+
+
 
     def requestPublic(self, endpoint, params):
         requestUrl = self.baseUrl + endpoint
@@ -91,7 +97,6 @@ class geminiService:
 
     def executeTrade(self, positionChange, geminiTradeResults):
         try:
-            print 'in gemini executeTrade...'
             
             tradeDetails = positionChange['gemini']
             counterPrice = positionChange['gdax']['rate']
@@ -103,8 +108,7 @@ class geminiService:
             price = None
             tradeQuantity = tradeDetails['quantity']
 
-            while not tradeCompleted & tradeProfitable:
-                # time.sleep(1.1)
+            while not tradeCompleted and tradeProfitable:
                 orderBook = self.getOrderBook()
 
                 if tradeDetails['action'] == 'buy':
@@ -116,6 +120,7 @@ class geminiService:
                         continue
                     
                     # if price >= counterPrice:
+                    #     print 'gemini trade not profitable'
                     #     tradeProfitable = False
                     #     continue
 
@@ -129,6 +134,7 @@ class geminiService:
                         continue
                     
                     # if price <= counterPrice:
+                    #     print 'gemini trade not profitable'
                     #     tradeProfitable = False
                     #     continue
 
@@ -148,28 +154,29 @@ class geminiService:
                     sys.exit()
 
                 orderResults = self.newOrder(orderParams)
-                print orderResults
 
                 if 'order_id' not in orderResults:
                     print 'gemini order could not be submitted'
                     continue
 
-                while not tradeCompleted:
-                    time.sleep(2)
-                    tradeStatus = self.orderStatus(orderResults['order_id'])
-                    if tradeStatus['executed_amount'] == tradeStatus['original_amount']:
-                        tradeCompleted = True
-                        finalOrderResults = orderResults
-                        continue
-                    else:
-                        print 'canceling all orders...'
-                        self.cancelOrders()
-                        tradeQuantity = float(tradeStatus['original_amount']) - float(tradeStatus['executed_amount'])
-                        print 'new trading quantity: ' + str(tradeQuantity)
-                        positionChange = positionChange.copy()
-                        positionChange['quantity'] = tradeQuantity
-                        self.executeTrade(positionChange, geminiTradeResults)
-                        
+                if 'original_amount' in orderResults:
+                    print 'order was sucessfully placed on gemini'
+
+                time.sleep(4)
+
+                tradeStatus = self.orderStatus(orderResults['order_id'])
+
+                if tradeStatus['executed_amount'] == tradeStatus['original_amount']:
+                    print 'gemini order is complete'
+                    tradeCompleted = True
+                    finalOrderResults = orderResults
+                else:
+                    print 'canceling all orders on gemini'
+                    self.cancelOrders()
+                    tradeQuantity = float(tradeStatus['original_amount']) - float(tradeStatus['executed_amount'])
+                    print 'new gemini trading quantity: ' + str(tradeQuantity)
+                
+
             if tradeCompleted:
                     tradeSummary = self.orderHistory(finalOrderResults['order_id'])
                     finalTradeResults  = tradeSummary.copy()
@@ -178,11 +185,120 @@ class geminiService:
                     geminiTradeResults.put([finalTradeResults])
                     return 
             elif not tradeProfitable:
-                print tradeDetails['action'] + 'on gemini for ' + tradeDetails['quantity'] + 'ethereum at ' + price + '/eth was unsuccesful - order book no longer profitable'
+                print tradeDetails['action'] + ' on gemini for ' + str(tradeDetails['quantity']) + ' ethereum at ' + str(price) + '/eth was unsuccesful - order book no longer profitable'
                 sys.exit()
 
         except Exception as e: 
             print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
+
+    def executeMakerTrade(self, positionChange, geminiTradeResults):
+        try:
+            
+            tradeDetails = positionChange['gemini']
+            counterPrice = positionChange['gdax']['rate']
+
+            tradeCompleted = False
+            tradeProfitable = True
+
+            finalOrderResults = None
+            price = None
+            tradeQuantity = tradeDetails['quantity']
+
+            while not tradeCompleted and tradeProfitable:
+                orderBook = self.getOrderBook()
+
+                if tradeDetails['action'] == 'buy':
+                    highestBuyPriceLevel = orderBook['bids'][0]
+                    price = float(highestBuyPriceLevel['price'])
+                
+                    # if price >= counterPrice:
+                    #     print 'trade not profitable'
+                    #     tradeProfitable = False
+                    #     continue
+
+                if tradeDetails['action'] == 'sell':
+                    lowestSellPriceLevel = orderBook['asks'][0]
+                    price = float(lowestSellPriceLevel['price'])
+                    
+                    # if price <= counterPrice:
+                    #     print 'trade not profitable'
+                    #     tradeProfitable = False
+                    #     continue
+
+                print 'placing ' + tradeDetails['action'] + ' trade on Gemini for ' + str(tradeDetails['quantity']) + ' ethereum at ' + str(price) + '/eth'
+
+                orderParams = {
+                    'client_order_id': "20150102-4738721", 
+                    'symbol': 'ethusd',       
+                    'amount': tradeQuantity,        
+                    'price': price,
+                    'side': tradeDetails['action'],
+                    'type': 'exchange limit',
+                    'options': ["maker-or-cancel"] 
+                }
+
+                if orderParams['price'] < 100 or orderParams['price'] > 400:
+                    print 'failed gemini price sanity check. price: ' + str(orderParams['price'])
+                    sys.exit()
+
+                orderResults = self.newOrder(orderParams)
+
+                # -- check the order was successfully placed
+                if 'order_id' not in orderResults:
+                    print 'gemini order could not be submitted'
+                    continue
+
+                if 'original_amount' in orderResults:
+                    print 'order was sucessfully placed on gemini...'
+
+                # -- wait period of time for order to get filled
+                
+
+                priceLevelUnchanged = True
+                # -- get current status of order
+                while priceLevelUnchanged:
+                    time.sleep(4)
+                    print 'getting gemini trade status'
+                    tradeStatus = self.orderStatus(orderResults['order_id'])
+
+                    if tradeStatus['executed_amount'] == tradeStatus['original_amount']:
+                        print 'order is complete'
+                        tradeCompleted = True
+                        finalOrderResults = orderResults
+                        break
+                    else:
+                        orderBook = self.getOrderBook()
+
+                        if tradeDetails['action'] == 'buy':
+                            newPriceLevel = float(orderBook['bids'][0]['price'])
+                                
+                        if tradeDetails['action'] == 'sell':
+                            newPriceLevel = float(orderBook['asks'][0]['price'])
+
+                        if newPriceLevel == price:
+                            print 'gemini price hasnt changed...'
+                            continue
+                        else:
+                            print 'canceling all orders on gemini...'
+                            self.cancelOrders()
+                            tradeQuantity = float(tradeStatus['original_amount']) - float(tradeStatus['executed_amount'])
+                            priceLevelUnchanged = False
+                            print 'new gemini trading quantity: ' + str(tradeQuantity)
+               
+            if tradeCompleted:
+                    tradeSummary = self.orderHistory(finalOrderResults['order_id'])
+                    finalTradeResults  = tradeSummary.copy()
+
+                    finalTradeResults['action'] = tradeDetails['action']
+                    geminiTradeResults.put([finalTradeResults])
+                    return 
+            elif not tradeProfitable:
+                print tradeDetails['action'] + ' on gemini for ' + str(tradeDetails['quantity']) + ' ethereum at ' + str(price) + '/eth was unsuccesful - order book no longer profitable'
+                sys.exit()
+
+        except Exception as e: 
+            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
+
 
     def newOrder(self, params):
         try: 
