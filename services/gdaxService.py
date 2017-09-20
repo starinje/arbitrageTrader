@@ -192,19 +192,19 @@ class gdaxService:
                         highestBuyPriceLevel = orderBook['bids'][0]
                         price = float(highestBuyPriceLevel['price'])
                     
-                        # if price >= counterPrice:
-                        #     print 'gdax trade not profitable'
-                        #     tradeProfitable = False
-                        #     continue
+                        if price >= counterPrice:
+                            print 'gdax trade not profitable'
+                            tradeProfitable = False
+                            continue
 
                     if tradeDetails['action'] == 'sell':
                         lowestSellPriceLevel = orderBook['asks'][0]
                         price = float(lowestSellPriceLevel['price'])
                         
-                        # if price <= counterPrice:
-                        #     print 'gdax trade not profitable'
-                        #     tradeProfitable = False
-                        #     continue
+                        if price <= counterPrice:
+                            print 'gdax trade not profitable'
+                            tradeProfitable = False
+                            continue
 
                     print 'placing ' + tradeDetails['action'] + ' trade on Gdax for ' + str(tradeDetails['quantity']) + ' ethereum at ' + str(price) + '/eth'
 

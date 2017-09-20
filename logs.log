@@ -1,10 +1,78 @@
-INFO:root:1502117786.08
-INFO:root:successful sell on Gdax for 0.1 ethereum at 272.99/eth, fee of 0.0
-INFO:root:successful buy on Gemini for 0.1 ethereum at 271.72/eth, fee of 0.06793
-INFO:root:total USD: 11999.9861471
-INFO:root:total ETH: 45.07907077
-INFO:root:1502117797.07
-INFO:root:successful sell on Gdax for 0.1 ethereum at 273.02/eth, fee of 0.0
-INFO:root:successful buy on Gemini for 0.1 ethereum at 271.72/eth, fee of 0.06793
-INFO:root:total USD: 11999.9662411
-INFO:root:total ETH: 45.07907077
+INFO:root:possible trade: 
+INFO:root:1503147141.33
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503160619.98
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503160620.5
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161291.13
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161291.64
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161292.16
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161292.67
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161293.18
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161293.69
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161294.2
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161294.7
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161295.21
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161295.72
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161296.23
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503161296.74
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503182978.75
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503232221.5
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503233598.32
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503233598.83
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503233599.34
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503233599.85
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503233600.36
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503233600.87
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503235844.2
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503239675.41
+INFO:root:None
+INFO:root:possible trade: 
+INFO:root:1503243438.58
+INFO:root:None

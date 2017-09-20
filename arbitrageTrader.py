@@ -252,10 +252,19 @@ def main():
         if positionChange == 'none':
             print 'no trade opportunity'
             return 
+        else: 
+            logging.info('possible trade: ')
+            logging.info(str(time.time()))
+            
+            logging.info(str(positionChange))
+            
+            return 
         
         tradePossible = isTradePossible(positionChange, config['ethereumTradingQuantity'])
 
         if tradePossible:
+            
+
             print 'trade is possible'
           
             tradeResults = execute(positionChange)

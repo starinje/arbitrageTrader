@@ -10,9 +10,6 @@ import moment
 import datetime
 import arrow
 
-
-
-
 def createRequestConfig(key, secret, payload):
 	encodedPayload = base64.b64encode(json.dumps(payload))
 	signature = hmac.new(secret, encodedPayload, hashlib.sha384).hexdigest()
@@ -31,6 +28,8 @@ def nonce_time(self):
         self.nonceIncrement = self.nonceIncrement + 1
     else: 
         self.nonceIncrement = 0
+    print 'new nonce: '
+    print nonce
     return nonce
 
 def nonce_uuid():
@@ -119,10 +118,10 @@ class geminiService:
                     else:
                         continue
                     
-                    # if price >= counterPrice:
-                    #     print 'gemini trade not profitable'
-                    #     tradeProfitable = False
-                    #     continue
+                    if price >= counterPrice:
+                        print 'gemini trade not profitable'
+                        tradeProfitable = False
+                        continue
 
                 if tradeDetails['action'] == 'sell':
                     
@@ -133,10 +132,10 @@ class geminiService:
                     else:
                         continue
                     
-                    # if price <= counterPrice:
-                    #     print 'gemini trade not profitable'
-                    #     tradeProfitable = False
-                    #     continue
+                    if price <= counterPrice:
+                        print 'gemini trade not profitable'
+                        tradeProfitable = False
+                        continue
 
                 print 'placing ' + tradeDetails['action'] + ' trade on Gemini for ' + str(tradeDetails['quantity']) + ' ethereum at ' + str(price) + '/eth'
 
